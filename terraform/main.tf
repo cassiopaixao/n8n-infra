@@ -24,7 +24,7 @@ resource "google_compute_instance" "n8n_vm" {
     cd /opt/n8n
     git clone https://github.com/cassiopaixao/n8n-infra.git .
     cd docker
-    docker-compose up -d
+    docker-compose --env-file .env up -d
   EOT
 
   tags = ["n8n-backoffice"]

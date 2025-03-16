@@ -33,7 +33,8 @@ gcloud compute ssh n8n-backoffice --zone=us-central1-a
 ```
 ```bash
 cd /opt/n8n/docker
-sudo docker-compose up -d
+cp .env.example .env
+sudo docker-compose --env-file .env up -d
 ```
 
 ### 4. Issue SSL Certificate (First Time Only)
@@ -44,7 +45,7 @@ sudo docker-compose restart nginx
 
 ### 5. Automate SSL Renewal (Optional)
 ```bash
-(crontab -l 2>/dev/null; echo "0 0,12 * * * cd /opt/n8n/docker && docker-compose run --rm certbot renew --webroot --webroot-path=/var/www/certbot && docker-compose exec nginx nginx -s reload") | crontab -
+(crontab -l 2>/dev/null; echo "0 0,12 * * * cd /opt/n8n/docker && docker-compose --env-file .env run --rm certbot renew --webroot --webroot-path=/var/www/certbot && docker-compose exec nginx nginx -s reload") | crontab -
 ```
 
 ## ✅ Access n8n
