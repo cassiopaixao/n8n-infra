@@ -19,12 +19,35 @@ resource "google_compute_instance" "n8n_vm" {
   metadata_startup_script = <<-EOT
     #!/bin/bash
     apt-get update
-    apt-get install -y docker.io docker-compose
+    apt-get install -y docker.io docker-compose git
+
     mkdir -p /opt/n8n
     cd /opt/n8n
-    git clone https://github.com/cassiopaixao/n8n-infra.git .
-    cd docker
-    docker-compose --env-file .env up -d
+
+    # Wait for network to be ready
+    sleep 10
+
+    echo "Cloning repository..." >> /var/log/startup-script.log 2>&1
+    git clone https://github.com/cassiopaixao/n8n-infra.git /opt/n8n >> /var/log/startup-script.log 2>&1
+
+    cd /opt/n8n/docker
+
+    echo "Waiting for .env file upload before starting docker-compose..." >> /var/log/startup-script.log 2>&1
+
+    # Wait until the .env file is uploaded (timeout 5 minutes)
+    TIMEOUT=300
+    WAIT=0
+    while [ ! -f /opt/n8n/docker/.env ] && [ $WAIT -lt $TIMEOUT ]; do
+      sleep 5
+      WAIT=$((WAIT + 5))
+    done
+
+    if [ -f /opt/n8n/docker/.env ]; then
+      echo ".env file found. Starting docker-compose..." >> /var/log/startup-script.log 2>&1
+      docker-compose --env-file .env up -d
+    else
+      echo "Timeout waiting for .env file. Docker-compose was not started." >> /var/log/startup-script.log 2>&1
+    fi
   EOT
 
   tags = ["n8n-backoffice"]

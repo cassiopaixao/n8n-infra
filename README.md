@@ -27,23 +27,35 @@ terraform apply -var="project_id=cptech-sandbox"
 - This will create a VM and firewall rules.
 - Outputs the **external IP address**.
 
-### 3. SSH into the VM & Initialize Docker Compose
+### 3. Upload Your .env File to the VM
+Use `gcloud scp` or `scp` to transfer your environment file (which is not in the repository) securely:
+
+Using gcloud:
+```bash
+gcloud compute scp ./docker/.env n8n-backoffice:/opt/n8n/docker/.env --zone=us-central1-a
+```
+
+Or using scp:
+```bash
+scp ./docker/.env USER@VM_EXTERNAL_IP:/opt/n8n/docker/.env
+```
+
+### 4. SSH into the VM & Start Docker Compose
 ```bash
 gcloud compute ssh n8n-backoffice --zone=us-central1-a
 ```
 ```bash
 cd /opt/n8n/docker
-cp .env.example .env
 sudo docker-compose --env-file .env up -d
 ```
 
-### 4. Issue SSL Certificate (First Time Only)
+### 5. Issue SSL Certificate (First Time Only)
 ```bash
 sudo docker-compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot --email cassio.paixao@gmail.com --agree-tos --no-eff-email -d n8n-backoffice.startupcto.com.br
 sudo docker-compose restart nginx
 ```
 
-### 5. Automate SSL Renewal (Optional)
+### 6. Automate SSL Renewal (Optional)
 ```bash
 (crontab -l 2>/dev/null; echo "0 0,12 * * * cd /opt/n8n/docker && docker-compose --env-file .env run --rm certbot renew --webroot --webroot-path=/var/www/certbot && docker-compose exec nginx nginx -s reload") | crontab -
 ```
@@ -63,4 +75,6 @@ terraform/       # Terraform files for provisioning
 
 docker/          # Docker Compose files and nginx config
  ├── docker-compose.yml
- └── nginx.conf
+ ├── nginx.conf
+ └── .env.example
+```
