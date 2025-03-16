@@ -28,6 +28,12 @@ resource "google_compute_instance" "n8n_vm" {
   EOT
 
   tags = ["n8n-backoffice"]
+
+  lifecycle {
+    ignore_changes = [
+      metadata_startup_script
+    ]
+  }
 }
 
 resource "google_compute_firewall" "n8n_firewall" {
