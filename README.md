@@ -27,24 +27,32 @@ terraform init
 terraform apply -var="project_id=YOUR_PROJECT_ID"
 ```
 - This will create a VM and firewall rules.
-- Outputs the **external IP address**.
+- Outputs the **external IP address**. You should create an **A** DNS record pointing to this IP address.
 
 ### 3. Upload Your .env File to the VM
 Use `gcloud scp` or `scp` to transfer your environment file (see `./docker/.env.example`) securely:
 
 ```bash
-gcloud compute scp ./docker/.env n8n-backoffice:/opt/n8n/docker/.env --zone=us-central1-a
+gcloud compute scp ./docker/.env n8n-backoffice:~/.env --zone=us-central1-a
 # or
-scp ./docker/.env USER@VM_EXTERNAL_IP:/opt/n8n/docker/.env
+scp ./docker/.env USER@VM_EXTERNAL_IP:~/.env
 ```
 
-### 4. SSH into the VM
+### 4. SSH into the VM and move the .env file
 ```bash
 gcloud compute ssh n8n-backoffice --zone=us-central1-a
+sudo mv ~/.env /opt/n8n/docker/.env
 cd /opt/n8n/docker
 ```
 
-### 5. Bootstrap NGINX without SSL (first time only)
+### 5. Generate nginx.conf from template
+```bash
+export $(grep -v '^#' .env | xargs)
+envsubst '${DOMAIN}' < ./nginx/nginx.conf.template | sudo tee ./nginx/nginx.conf > /dev/null
+envsubst '${DOMAIN}' < ./nginx/nginx.bootstrap.conf.template | sudo tee ./nginx/nginx.bootstrap.conf > /dev/null
+```
+
+### 6. Bootstrap NGINX without SSL (first time only)
 ```bash
 export $(grep -v '^#' .env | xargs)
 sudo docker run -d \
@@ -55,7 +63,7 @@ sudo docker run -d \
   nginx:alpine
 ```
 
-### 6. Issue the SSL Certificate
+### 7. Issue the SSL Certificate
 ```bash
 export $(grep -v '^#' .env | xargs)
 sudo docker-compose run --rm certbot certonly \
@@ -64,13 +72,13 @@ sudo docker-compose run --rm certbot certonly \
   -d ${DOMAIN}
 ```
 
-### 7. Stop the temporary NGINX and start full stack
+### 8. Stop the temporary NGINX and start full stack
 ```bash
 sudo docker rm -f nginx-bootstrap
 sudo docker-compose --env-file .env up -d
 ```
 
-### 8. Automate SSL Renewal (Optional)
+### 9. Automate SSL Renewal (Optional)
 ```bash
 (crontab -l 2>/dev/null; echo "0 0,12 * * * cd /opt/n8n/docker && docker-compose --env-file .env run --rm certbot renew --webroot --webroot-path=/var/www/certbot && docker-compose exec nginx nginx -s reload") | crontab -
 ```
