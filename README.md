@@ -15,44 +15,46 @@ Note: You should update it in your .env
 - Git installed
 - A domain pointing to your VM external IP
 
-### 1. Clone This Repository
+### 1. Clone this repository
 ```bash
 git clone https://github.com/cassiopaixao/n8n-infra.git
 cd n8n-infra/terraform
 ```
 
-### 2. Initialize & Apply Terraform
+### 2. Initialize & apply Terraform
 ```bash
 terraform init
 terraform apply -var="project_id=YOUR_PROJECT_ID"
 ```
 - This will create a VM and firewall rules.
-- Outputs the **external IP address**. You should create an **A** DNS record pointing to this IP address.
+- Outputs the **external IP address**.
+- You should create an **A** DNS record pointing to this IP address.
 
-### 3. Upload Your .env File to the VM
+### 3. Upload your .env file to the VM
 Use `gcloud scp` or `scp` to transfer your environment file (see `./docker/.env.example`) securely:
-
 ```bash
 gcloud compute scp ./docker/.env n8n-backoffice:~/.env --zone=us-central1-a
 # or
 scp ./docker/.env USER@VM_EXTERNAL_IP:~/.env
 ```
 
-### 4. SSH into the VM and move the .env file
+SSH into the VM and move the `.env` file
 ```bash
 gcloud compute ssh n8n-backoffice --zone=us-central1-a
 sudo mv ~/.env /opt/n8n/docker/.env
 cd /opt/n8n/docker
 ```
 
-### 5. Generate nginx.conf from template
+### 4. Generate nginx.conf from template
 ```bash
 export $(grep -v '^#' .env | xargs)
 envsubst '${DOMAIN}' < ./nginx/nginx.conf.template | sudo tee ./nginx/nginx.conf > /dev/null
 envsubst '${DOMAIN}' < ./nginx/nginx.bootstrap.conf.template | sudo tee ./nginx/nginx.bootstrap.conf > /dev/null
 ```
 
-### 6. Bootstrap NGINX without SSL (first time only)
+### 5. Set up NGINX, certificate and booting (first time only)
+
+#### 5.1. Bootstrap NGINX without SSL
 ```bash
 export $(grep -v '^#' .env | xargs)
 sudo docker run -d \
@@ -63,7 +65,7 @@ sudo docker run -d \
   nginx:alpine
 ```
 
-### 7. Issue the SSL Certificate
+#### 5.2. Issue the SSL certificate
 ```bash
 export $(grep -v '^#' .env | xargs)
 sudo docker-compose run --rm certbot certonly \
@@ -72,15 +74,20 @@ sudo docker-compose run --rm certbot certonly \
   -d ${DOMAIN}
 ```
 
-### 8. Stop the temporary NGINX and start full stack
+#### 5.3. Stop the temporary NGINX and start full stack
 ```bash
 sudo docker rm -f nginx-bootstrap
 sudo docker-compose --env-file .env up -d
 ```
 
-### 9. Automate SSL Renewal (Optional)
+#### 5.4. Automate SSL renewal (Optional)
 ```bash
 (crontab -l 2>/dev/null; echo "0 0,12 * * * cd /opt/n8n/docker && docker-compose --env-file .env run --rm certbot renew --webroot --webroot-path=/var/www/certbot && docker-compose exec nginx nginx -s reload") | crontab -
+```
+
+#### 5.5. Install systemd service for auto-start on reboot (Optional)
+```bash
+sudo sh install-systemd.sh
 ```
 
 ## ✅ Access n8n
